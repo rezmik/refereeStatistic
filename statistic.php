@@ -3,13 +3,13 @@
 	session_start();
 
 	require_once "connect.php";
-	
+
 	if (!isset($_SESSION['online']))
 	{
 		header('Location: index.php');
 		exit();
 	}
-	
+
 ?>
 <!DOCTYPE HTML>
 <html lang="pl">
@@ -43,20 +43,12 @@
 		</div>
 
 		<div id="container2">
-			<?php 
-
-				try {
-					$connection = new PDO('mysql:host='.$host.';dbname='.$db_name.';encoding=utf8', $db_user, $db_password);
-					$connection->setAttribute( PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-				} catch ( PDOException $e ) {
-					echo '<span style="color:red;">Błąd serwera! Przepraszamy za niedogodności!</span>';
-					echo '<br />Informacja developerska: '.$e->getMessage();
-				}
+			<?php
 
 				$user = $_SESSION['names'];
 
 
-				function stats( $querys ) {
+				function stats( $connection, $querys ) {
 
 					$result = $connection->query( $querys );
 
@@ -68,18 +60,41 @@
 				}
 
 
-				$zapytanie = "SELECT id FROM matches WHERE main='$user' OR assistant1='$user' OR assistant2='$user'";
-				
+				$query1 = "SELECT id FROM matches WHERE main='$user' OR assistant1='$user' OR assistant2='$user'";
 
-				echo 'Liczba meczów ogółem: '.stats($zapytanie).'</br>';
+				echo 'Liczba meczów ogółem: '.stats($connection, $query1).'</br>';
 
-				$result = $connection->query("SELECT id FROM matches WHERE main='$user'");
+				$query2 = "SELECT id FROM matches WHERE main='$user'";
 
-				if ( !$result ) throw new Exception ( $connection->error );
+				echo 'Liczba meczów jak sędzia główny: '.stats($connection,$query2).'<br>';
 
-				$matchAsMain = $result->rowCount();
+				$rezultat = $connection->query("SELECT hyellow, ayellow FROM matches WHERE main='$user'");
 
-				echo 'Liczba meczów jak sędzia główny: '.$matchAsMain;
+				if ( !$rezultat ) throw new Exception ( $connection->error );
+
+				$sum_all_yellow = 0;
+				$sum_home_yellow = 0;
+				$sum_away_yellow = 0;
+
+				foreach($rezultat->fetchAll() as $value) {
+					$sum_all_yellow += $value['hyellow'] + $value['ayellow'];
+					$sum_home_yellow += $value['hyellow'];
+					$sum_away_yellow += $value['ayellow'];
+				}
+
+				echo 'Ilość udzielonych napomnień: '.$sum_all_yellow.'<br>';
+
+				echo 'Ilość udzielonych napomnień gospodarzą: '.$sum_home_yellow.'<br>';
+
+				echo 'Ilość udzielonych napomnień gością: '.$sum_away_yellow.'<br>';
+
+				$avarage_all_yellow = $sum_all_yellow / stats($connection, $query2);
+				$avarage_home_yellow = $sum_home_yellow / stats($connection, $query2);
+				$avarage_away_yellow = $sum_away_yellow / stats($connection, $query2);
+
+				echo 'Średnia ilość żółtych kartek na mecz: '.round($avarage_all_yellow, 2).'<br>';
+				echo 'Średnia ilość żółtych kartek na mecz dla gospodarzy: '.round($avarage_home_yellow, 2).'<br>';
+				echo 'Średnia ilość żółtych kartek na mecz dla gości: '.round($avarage_away_yellow, 2).'<br>';
 
 			?>
 		</div>
